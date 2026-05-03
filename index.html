@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Permanent Record | Leviatán, Vigilancia y Soberanía Individual</title>
+  <meta
+    name="description"
+    content="Trabajo académico interactivo sobre Permanent Record de Edward Snowden, con enfoque en vigilancia estatal, privacidad y soberanía individual."
+  >
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <style>
+    :root {
+      --bg: #041019;
+      --bg-soft: rgba(6, 20, 31, 0.82);
+      --panel: rgba(8, 29, 41, 0.78);
+      --panel-strong: rgba(10, 40, 56, 0.92);
+      --line: rgba(91, 235, 255, 0.2);
+      --line-strong: rgba(102, 255, 224, 0.45);
+      --text: #d8f7ff;
+      --muted: #84b7c4;
+      --cyan: #66ffe0;
+      --blue: #69b8ff;
+      --green: #89ff8f;
+      --amber: #ffd166;
+      --danger: #ff5d73;
+      --shadow: 0 0 40px rgba(69, 213, 255, 0.15);
+      --radius: 22px;
+      --max: 1240px;
+    }
+
+    * {
+      box-sizing: border-box;
+      cursor: none !important;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: "IBM Plex Mono", monospace;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 20%, rgba(81, 239, 255, 0.12), transparent 24%),
+        radial-gradient(circle at 80% 15%, rgba(102, 184, 255, 0.14), transparent 26%),
+        radial-gradient(circle at 50% 100%, rgba(129, 255, 174, 0.08), transparent 28%),
+        linear-gradient(180deg, #02060a 0%, #041019 40%, #02060a 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+      transition: background 1s ease;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    body::before {
+      background:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0) 3%),
+        repeating-linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.04) 0,
+          rgba(255, 255, 255, 0.04) 1px,
+          transparent 1px,
+          transparent 4px
+        );
+      mix-blend-mode: screen;
+      opacity: 0.18;
+    }
+
+    body::after {
+      background: linear-gradient(90deg, rgba(255, 0, 102, 0.035), transparent 30%, transparent 70%, rgba(0, 221, 255, 0.035));
+      animation: flicker 7s infinite;
+      opacity: 0.3;
+    }
+
+    /* EFECTO SCANLINES */
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.15));
+      background-size: 100% 4px;
+      z-index: 99;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    /* TERMINAL OVERLAY */
+    #terminal-overlay {
+      position: fixed; top: -100%; left: 0; width: 100%; height: 50vh; background: rgba(2, 6, 10, 0.95);
+      border-bottom: 2px solid var(--cyan); z-index: 9999; box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+      font-family: 'IBM Plex Mono', monospace; padding: 20px; color: var(--cyan); overflow-y: auto;
+      transition: top 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); backdrop-filter: blur(10px);
+    }
+    #terminal-overlay.active { top: 0; }
+    .term-line { margin-bottom: 8px; font-size: 0.9rem; word-break: break-all; }
+    .term-line.sys { color: var(--muted); }
+    .term-line.err { color: var(--danger); }
+    .term-line.warn { color: var(--amber); }
+    .term-input-line { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+    #term-input { background: transparent; border: none; color: var(--text); font-family: inherit; font-size: 0.9rem; flex: 1; outline: none; }
+
+    /* CURSOR CUSTOM */
+    .cursor-dot, .cursor-outline {
+      position: fixed;
+      top: 0;
+      left: 0;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      z-index: 10000;
+      pointer-events: none;
+    }
+    .cursor-dot {
+      width: 6px;
+      height: 6px;
+      background-color: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan);
+      transition: transform 0.1s ease-out, background-color 0.5s;
+    }
+    .cursor-outline {
+      width: 40px;
+      height: 40px;
+      border: 1px solid rgba(102, 255, 224, 0.5);
+      transition: width 0.2s ease-out, height 0.2s ease-out, background-color 0.2s ease-out, border-color 0.2s;
+    }
+    .cursor-outline.hover {
+      width: 60px;
+      height: 60px;
+      background-color: rgba(102, 255, 224, 0.1);
+      border-color: var(--blue);
+      box-shadow: 0 0 20px rgba(105, 184, 255, 0.2);
+    }
+    .cursor-outline.click {
+      transform: translate(-50%, -50%) scale(0.8);
+    }
+
+    @keyframes flicker {
+      0%, 100% { opacity: 0.24; }
+      7% { opacity: 0.32; }
+      11% { opacity: 0.16; }
+      43% { opacity: 0.28; }
+      57% { opacity: 0.21; }
+      79% { opacity: 0.31; }
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 0 rgba(102, 255, 224, 0), 0 0 35px rgba(102, 255, 224, 0.08); }
+      50% { box-shadow: 0 0 24px rgba(102, 255, 224, 0.18), 0 0 60px rgba(105, 184, 255, 0.12); }
+    }
+
+    @keyframes text-glitch {
+      0%, 100% { text-shadow: 0 0 10px rgba(102, 255, 224, 0.2); }
+      20% { text-shadow: 2px 0 rgba(255, 0, 102, 0.6), -2px 0 rgba(0, 221, 255, 0.6), 0 0 10px rgba(102, 255, 224, 0.2); }
+      21% { text-shadow: -1px 0 rgba(255, 0, 102, 0.3), 1px 0 rgba(0, 221, 255, 0.3), 0 0 10px rgba(102, 255, 224, 0.2); }
+    }
+
+    @keyframes terminal-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    @keyframes feed-in {
+      from { opacity: 0; transform: translateX(-10px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    a { color: inherit; text-decoration: none; }
+    img, svg { display: block; max-width: 100%; }
+
+    .shell {
+      position: relative;
+      width: min(100% - 32px, var(--max));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 60;
+      backdrop-filter: blur(16px);
+      background: rgba(2, 9, 13, 0.76);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .topbar-inner {
+      width: min(100% - 24px, var(--max));
+      margin: 0 auto;
+      padding: 14px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      font-family: "Chakra Petch", sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.24em;
+      font-size: 0.82rem;
+      color: var(--cyan);
+      animation: text-glitch 5s infinite;
+      position: relative;
+      transition: color 0.5s;
+    }
+    
+    .brand:hover {
+      animation: text-glitch 0.2s infinite;
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .nav a, .nav button {
+      padding: 8px 12px;
+      font-size: 0.72rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      transition: 180ms ease;
+      background: transparent;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .nav a:hover,
+    .nav a:focus-visible,
+    .nav button:hover,
+    .nav button:focus-visible {
+      color: var(--text);
+      border-color: var(--cyan);
+      box-shadow: 0 0 18px rgba(102, 255, 224, 0.2);
+      transform: translateY(-1px);
+      background: rgba(102, 255, 224, 0.05);
+    }
+
+    main { padding-bottom: 80px; }
+    section { padding: 92px 0; position: relative; }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.76rem;
+      color: var(--green);
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      margin-bottom: 18px;
+      transition: color 0.5s;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 28px;
+      height: 1px;
+      background: var(--green);
+      box-shadow: 0 0 12px rgba(137, 255, 143, 0.3);
+      transition: background 0.5s;
+    }
+
+    h1, h2, h3, h4 {
+      margin: 0;
+      font-family: "Chakra Petch", sans-serif;
+      line-height: 0.95;
+      letter-spacing: 0.03em;
+    }
+
+    h1 {
+      font-size: clamp(2.7rem, 8vw, 6.6rem);
+      text-transform: uppercase;
+      max-width: none;
+      line-height: 0.9;
+      letter-spacing: 0.02em;
+      text-shadow: 0 0 24px rgba(102, 255, 224, 0.15);
+    }
+
+    .hero-title { display: inline-block; max-width: 100%; word-break: keep-all; }
+    .hero-title span { display: block; }
+    h2 { font-size: clamp(2.1rem, 5vw, 4rem); max-width: 13ch; }
+    h3 { font-size: clamp(1.2rem, 2.4vw, 1.8rem); }
+    p { margin: 0; color: var(--muted); line-height: 1.75; font-size: 1rem; transition: color 0.5s; }
+    .lede { font-size: 1.08rem; max-width: 64ch; }
+
+    .hero { min-height: calc(100vh - 64px); display: grid; align-items: center; overflow: hidden; }
+    .hero-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 28px; align-items: stretch; }
+
+    .hero-copy, .hero-monitor {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: linear-gradient(180deg, rgba(9, 22, 34, 0.9), rgba(3, 13, 20, 0.8));
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transition: border-color 0.5s, box-shadow 0.5s;
+    }
+
+    .hero-copy { padding: 42px; }
+
+    .hero-copy::before, .hero-monitor::before, .panel::before, .accordion-item::before, .card::before, .flip-card-inner::before {
+      content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
+      background: linear-gradient(130deg, rgba(102, 255, 224, 0.35), transparent 35%, transparent 65%, rgba(105, 184, 255, 0.28));
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
+      transition: background 0.5s;
+    }
+
+    .hero-subtitle { max-width: 56ch; margin-top: 20px; margin-bottom: 28px; }
+
+    .hero-visual {
+      position: relative; margin: 24px 0 28px; padding: 18px; border-radius: 22px;
+      border: 1px solid rgba(102, 255, 224, 0.18);
+      background: radial-gradient(circle at 20% 25%, rgba(102, 255, 224, 0.12), transparent 28%), linear-gradient(180deg, rgba(6, 28, 40, 0.9), rgba(4, 16, 25, 0.82));
+      overflow: hidden;
+    }
+
+    .hero-visual::after {
+      content: ""; position: absolute; inset: 12px; border: 1px solid rgba(105, 184, 255, 0.18); border-radius: 18px; pointer-events: none;
+    }
+
+    .hero-caption { margin-top: 12px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--green); transition: color 0.5s; }
+    .hero-actions, .stat-grid, .pill-row { display: flex; flex-wrap: wrap; gap: 14px; }
+
+    .button {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      min-height: 50px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--line-strong);
+      background: rgba(8, 31, 44, 0.8); color: var(--text); transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+      animation: pulse-glow 6s ease-in-out infinite;
+    }
+    .button.alt { border-color: var(--line); color: var(--muted); animation: none; }
+    .button:hover, .button:focus-visible {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.35), 0 0 24px rgba(102, 255, 224, 0.25);
+      border-color: var(--cyan); color: var(--cyan);
+    }
+
+    .hero-monitor { display: grid; grid-template-rows: auto 1fr auto; min-height: 520px; }
+    
+    .monitor-head, .monitor-foot {
+      display: flex; align-items: center; justify-content: space-between; padding: 16px 20px;
+      border-bottom: 1px solid var(--line); color: var(--muted); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.16em;
+      transition: color 0.5s, border-color 0.5s;
+    }
+    .monitor-foot { border-top: 1px solid var(--line); border-bottom: 0; }
+
+    .status-dot { display: inline-block; width: 8px; height: 8px; background: var(--danger); border-radius: 50%; box-shadow: 0 0 8px var(--danger); margin-right: 6px; animation: flicker 2s infinite; }
+
+    .monitor-body { position: relative; padding: 24px 20px 16px; display: grid; gap: 18px; align-content: start; }
+
+    .meta-screen { display: grid; gap: 12px; }
+    .meta-row, .info-row {
+      display: grid; grid-template-columns: 1fr auto; gap: 14px; padding: 12px 14px; border-radius: 16px;
+      border: 1px solid rgba(102, 255, 224, 0.12); background: rgba(9, 28, 38, 0.72); transition: border-color 0.3s;
+    }
+    .meta-row:hover { border-color: var(--cyan); }
+    .meta-label, .info-label { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.14em; transition: color 0.5s; }
+    .meta-value, .info-value { color: var(--text); font-weight: 600; text-align: right; word-break: break-all;}
+
+    /* ESTILOS PARA EL FEED EN VIVO */
+    .live-feed {
+      margin-top: 8px; padding: 14px; border-radius: 14px; background: rgba(0,0,0,0.4);
+      border: 1px solid var(--line); font-size: 0.7rem; color: var(--green); height: 120px;
+      display: flex; flex-direction: column; position: relative; overflow: hidden; transition: color 0.5s, border-color 0.5s;
+    }
+    .live-feed::after {
+      content: ""; position: absolute; bottom: 0; left: 0; width: 100%; height: 30px;
+      background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); pointer-events: none;
+    }
+    .live-feed-header { border-bottom: 1px solid var(--line); padding-bottom: 6px; margin-bottom: 8px; color: var(--cyan); display: flex; justify-content: space-between; flex-shrink: 0; transition: color 0.5s; }
+    .feed-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-start; gap: 4px; }
+    .feed-line { 
+      opacity: 0; 
+      animation: feed-in 0.3s ease-out forwards; 
+      white-space: nowrap; 
+      text-overflow: ellipsis; 
+      overflow: hidden; 
+      flex-shrink: 0; 
+      min-height: 1.2em;
+    }
+
+    .alarm {
+      padding: 16px; border-radius: 18px; border: 1px solid rgba(255, 93, 115, 0.35);
+      background: linear-gradient(180deg, rgba(83, 15, 25, 0.5), rgba(53, 8, 14, 0.3)); color: #ffd7df; font-size: 0.92rem;
+    }
+
+    .stat-grid { margin-top: 28px; }
+    .stat { flex: 1 1 180px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 18px; background: rgba(6, 21, 31, 0.75); transition: transform 0.3s, border-color 0.5s; }
+    .stat:hover { transform: translateY(-5px); border-color: var(--cyan); }
+    .stat strong { display: block; font-size: 1.5rem; color: var(--cyan); margin-bottom: 6px; transition: color 0.5s;}
+
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 30px; }
+    .section-head p { max-width: 58ch; }
+    .grid-2, .grid-3 { display: grid; gap: 22px; }
+    .grid-2 { grid-template-columns: 1.1fr 0.9fr; }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .panel, .card, .timeline-card, .defense-card {
+      position: relative; background: var(--panel); border: 1px solid var(--line);
+      border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); overflow: hidden; transition: border-color 0.5s;
+    }
+
+    .terminal {
+      font-size: 0.85rem; color: var(--green); text-transform: uppercase; letter-spacing: 0.18em; margin-bottom: 18px; min-height: 1.2em; display: inline-block; transition: color 0.5s;
+    }
+    .terminal::after {
+      content: '_\2588';
+      animation: terminal-blink 1s step-end infinite;
+      margin-left: 4px;
+      color: var(--cyan);
+    }
+
+    .accordion { display: grid; gap: 14px; }
+    .accordion-item { position: relative; border: 1px solid var(--line); border-radius: 20px; background: rgba(7, 24, 34, 0.78); overflow: hidden; transition: border-color 0.3s; }
+    .accordion-item:hover { border-color: var(--cyan); }
+    
+    .accordion-trigger {
+      width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding: 20px 22px; background: transparent; border: 0; color: var(--text); text-align: left; font: inherit;
+    }
+    .accordion-trigger span { max-width: 52ch; color: var(--muted); font-size: 0.9rem; line-height: 1.5; transition: color 0.5s; }
+    .accordion-icon { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; color: var(--cyan); flex: none; transition: transform 220ms ease, background 0.2s, border-color 0.5s, color 0.5s; }
+    .accordion-item.open .accordion-icon { transform: rotate(45deg); background: rgba(102, 255, 224, 0.1); }
+    
+    .accordion-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 280ms ease; }
+    .accordion-item.open .accordion-panel { grid-template-rows: 1fr; }
+    .accordion-panel > div { overflow: hidden; }
+    .accordion-content { padding: 0 22px 20px; display: grid; gap: 14px; color: var(--muted); transition: color 0.5s; }
+    .quote-box { margin-top: 16px; border-left: 3px solid var(--cyan); padding-left: 16px; color: var(--text); background: linear-gradient(90deg, rgba(102, 255, 224, 0.05), transparent); padding-top: 8px; padding-bottom: 8px; transition: border-color 0.5s;}
+
+    .graph-layout { display: grid; grid-template-columns: 1.5fr 0.5fr; gap: 22px; align-items: stretch; }
+    .graph-box {
+      min-height: 780px; height: 780px; padding: 0; position: relative;
+      background: radial-gradient(circle at 50% 50%, rgba(105, 184, 255, 0.08), transparent 42%), linear-gradient(180deg, rgba(8, 29, 41, 0.9), rgba(4, 16, 25, 0.88));
+    }
+    .graph-box::after {
+      content: "[ MOUSE WHEEL = ZOOM | DRAG = PAN ]"; position: absolute; bottom: 12px; left: 16px; font-size: 0.65rem; color: var(--line-strong); letter-spacing: 0.1em; transition: color 0.5s;
+    }
+
+    #author-graph { width: 100%; height: 780px; min-height: 780px; }
+    .author-info { display: grid; gap: 14px; align-content: start; }
+
+    .tag { display: inline-flex; align-items: center; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line); background: rgba(5, 22, 31, 0.72); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--cyan); transition: border-color 0.3s, box-shadow 0.3s, color 0.5s; }
+    .tag:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(102, 255, 224, 0.3); }
+
+    .list { display: grid; gap: 10px; padding: 0; margin: 0; list-style: none; }
+    .list li { padding: 14px 16px; border: 1px solid rgba(102, 255, 224, 0.12); border-radius: 16px; background: rgba(6, 24, 34, 0.66); color: var(--muted); transition: transform 0.2s, background 0.2s, color 0.5s; }
+    .list li:hover { transform: translateX(5px); background: rgba(102, 255, 224, 0.05); border-color: var(--cyan); }
+
+    .impression-grid { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 22px; }
+    .evidence-wall { min-height: 100%; display: grid; gap: 18px; }
+    .evidence-tags { display: flex; flex-wrap: wrap; gap: 10px; }
+    .evidence-graphic { position: relative; min-height: 280px; border-radius: 20px; overflow: hidden; border: 1px solid rgba(102, 255, 224, 0.16); background: linear-gradient(180deg, rgba(6, 23, 33, 0.85), rgba(4, 16, 25, 0.92)); }
+
+    .timeline-wrap { position: relative; margin-top: 26px; }
+    .timeline-scroll { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(280px, 32vw); gap: 18px; overflow-x: auto; padding-bottom: 16px; scroll-snap-type: x mandatory; scrollbar-color: var(--cyan) transparent; }
+    .timeline-scroll::-webkit-scrollbar { height: 10px; }
+    .timeline-scroll::-webkit-scrollbar-thumb { background: rgba(102, 255, 224, 0.35); border-radius: 999px; transition: background 0.5s; }
+    .timeline-scroll::-webkit-scrollbar-thumb:hover { background: var(--cyan); }
+    
+    .timeline-card { scroll-snap-align: start; min-height: 260px; display: grid; align-content: start; gap: 14px; transition: transform 0.3s, border-color 0.5s; }
+    .timeline-card:hover { border-color: var(--amber); }
+    .timeline-year { font-family: "Chakra Petch", sans-serif; font-size: 2rem; color: var(--amber); text-shadow: 0 0 10px rgba(255, 209, 102, 0.2); }
+    .timeline-bar { margin-top: 14px; height: 4px; background: linear-gradient(90deg, var(--cyan), var(--blue)); border-radius: 999px; box-shadow: 0 0 16px rgba(102, 255, 224, 0.18); transition: width 0.3s; width: 50%; }
+    .timeline-card:hover .timeline-bar { width: 100%; }
+
+    .critical-grid, .defense-grid, .glossary-grid, .defense-tools { display: grid; gap: 22px; }
+    .critical-grid, .glossary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .defense-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card h3, .defense-card h3 { margin-bottom: 12px; }
+
+    .stance { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 0.76rem; color: var(--amber); text-transform: uppercase; letter-spacing: 0.14em; }
+    .stance::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 10px rgba(255, 209, 102, 0.35); }
+
+    .divider { width: 100%; height: 1px; margin: 16px 0; background: linear-gradient(90deg, rgba(102, 255, 224, 0.35), transparent); transition: background 0.5s;}
+
+    .flip-card { height: 300px; perspective: 1400px; }
+    .flip-card-inner { position: relative; width: 100%; height: 100%; border-radius: 24px; transition: transform 650ms cubic-bezier(.2, .8, .2, 1), box-shadow 0.3s, border-color 0.5s; transform-style: preserve-3d; border: 1px solid var(--line); background: rgba(7, 24, 34, 0.7); box-shadow: var(--shadow); }
+    .flip-card:hover .flip-card-inner, .flip-card:focus-within .flip-card-inner { transform: rotateY(180deg) translateZ(4px); box-shadow: 0 0 30px rgba(102, 255, 224, 0.15); border-color: var(--cyan); }
+    
+    .flip-face { position: absolute; inset: 0; padding: 24px; border-radius: 24px; backface-visibility: hidden; display: grid; align-content: space-between; gap: 18px; }
+    .flip-face.back { transform: rotateY(180deg); background: linear-gradient(180deg, rgba(16, 46, 62, 0.94), rgba(6, 21, 31, 0.94)); border: 1px solid var(--cyan); }
+    .flip-index { display: inline-flex; width: 42px; height: 42px; border-radius: 50%; align-items: center; justify-content: center; color: var(--cyan); border: 1px solid var(--line); background: rgba(0, 0, 0, 0.2); font-family: "Chakra Petch", sans-serif; transition: color 0.5s, border-color 0.5s; }
+
+    .tool-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+    .exposure-grid { display: grid; grid-template-columns: 0.95fr 1.05fr; gap: 22px; margin-top: 24px; }
+    .exposure-panel { display: grid; gap: 18px; }
+    .range-row { display: grid; gap: 10px; }
+    .range-row label { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--text); font-size: 0.92rem; }
+    .range-row output { color: var(--cyan); font-weight: 600; font-family: "IBM Plex Mono", monospace; padding: 2px 8px; border-radius: 4px; background: rgba(102, 255, 224, 0.1); border: 1px solid var(--line); transition: color 0.5s;}
+
+    .range-row input[type="range"] { width: 100%; appearance: none; height: 8px; border-radius: 999px; background: linear-gradient(90deg, rgba(102,255,224,0.2), rgba(105,184,255,0.24)); outline: none; transition: box-shadow 0.3s, background 0.5s; }
+    .range-row input[type="range"]:hover { box-shadow: 0 0 10px rgba(102, 255, 224, 0.2); }
+    .range-row input[type="range"]::-webkit-slider-thumb { appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--cyan); border: 2px solid #06202c; box-shadow: 0 0 16px rgba(102,255,224,0.28); transition: transform 0.1s, background 0.5s; }
+    .range-row input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.3); }
+
+    .score-wrap { display: grid; place-items: center; min-height: 100%; }
+    .score-dial { position: relative; width: min(280px, 80vw); aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at center, rgba(4,16,25,0.96) 0 44%, transparent 45%), conic-gradient(var(--danger) 0deg, var(--amber) 130deg, var(--green) 220deg, rgba(102,255,224,0.16) 220deg 360deg); box-shadow: var(--shadow); transition: background 0.5s ease-out; }
+    .score-dial::before { content: ""; position: absolute; inset: 14px; border-radius: 50%; border: 1px solid rgba(102,255,224,0.14); background: radial-gradient(circle, rgba(8,29,41,0.92), rgba(3,13,20,0.96)); transition: border-color 0.5s ease-out; }
+
+    .score-core { position: relative; display: grid; gap: 6px; text-align: center; z-index: 1; }
+    .score-value { font-family: "Chakra Petch", sans-serif; font-size: 4rem; line-height: 0.9; color: var(--text); transition: color 0.5s ease; text-shadow: 0 0 20px rgba(255,255,255,0.1); }
+    .score-state { text-transform: uppercase; letter-spacing: 0.18em; color: var(--amber); font-size: 0.78rem; transition: color 0.5s ease; }
+    .score-note { max-width: 30ch; font-size: 0.88rem; color: var(--muted); transition: color 0.5s;}
+
+    .tool { position: relative; padding: 22px; border-radius: 22px; border: 1px solid var(--line); background: rgba(6, 23, 33, 0.8); box-shadow: var(--shadow); transition: border-color 0.3s; }
+    .tool:hover { border-color: var(--cyan); }
+    .tool-badge { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; margin-bottom: 16px; border: 1px solid var(--line-strong); color: var(--cyan); font-family: "Chakra Petch", sans-serif; font-size: 1.1rem; background: rgba(10, 34, 47, 0.84); transition: transform 0.3s, background 0.3s, color 0.5s, border-color 0.5s; }
+    .tool:hover .tool-badge { transform: scale(1.1) rotate(5deg); background: rgba(102, 255, 224, 0.15); box-shadow: 0 0 15px rgba(102, 255, 224, 0.2); }
+
+    .magnetic { will-change: transform; }
+    .footer-note { padding: 28px 0 0; color: var(--muted); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.12em; text-align: center; border-top: 1px dashed var(--line); margin-top: 40px; transition: color 0.5s;}
+
+    .orbit-ring, .signal-sweep, .fingerprint-lines { transform-origin: center; }
+    .orbit-ring { animation: rotate-slow 18s linear infinite; }
+    .signal-sweep { animation: sweep 5.5s linear infinite; }
+    .fingerprint-lines { animation: float-drift 6s ease-in-out infinite; }
+
+    @keyframes rotate-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes sweep { 0% { transform: rotate(-10deg); opacity: 0.12; } 50% { transform: rotate(18deg); opacity: 0.42; } 100% { transform: rotate(-10deg); opacity: 0.12; } }
+    @keyframes float-drift { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-8px); } }
+
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    .reveal { opacity: 0; transform: translateY(34px); }
+
+    @media (max-width: 1080px) {
+      .hero-grid, .grid-2, .graph-layout, .impression-grid, .grid-3, .critical-grid, .defense-grid, .glossary-grid, .tool-grid, .exposure-grid { grid-template-columns: 1fr; }
+      .timeline-scroll { grid-auto-columns: minmax(280px, 78vw); }
+    }
+
+    @media (max-width: 720px) {
+      .hero-copy, .panel, .card, .timeline-card, .tool, .defense-card, .hero-monitor { border-radius: 20px; }
+      .hero-copy { padding: 28px 22px; }
+      section { padding: 72px 0; }
+      .section-head { align-items: start; flex-direction: column; }
+      .nav { display: none; }
+      .cursor-dot, .cursor-outline { display: none; }
+      * { cursor: auto !important; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+      .reveal { opacity: 1; transform: none; }
+      .scanlines { display: none; }
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- TERMINAL OVERLAY INTERACTIVA -->
+  <div id="terminal-overlay">
+    <div style="display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 1px solid var(--line); padding-bottom: 10px;">
+      <strong>PANÓPTICO_OS // v.9.4.1</strong>
+      <button onclick="toggleTerminal()" style="background:none; border:none; color:var(--cyan); font-family:inherit; font-size:1rem; cursor:pointer; padding:0;">[ ESC ] Cerrar</button>
+    </div>
+    <div id="term-output">
+      <div class="term-line sys">Conexión establecida segura.</div>
+      <div class="term-line sys">Escribe 'help' para ver los comandos disponibles.</div>
+    </div>
+    <div class="term-input-line">
+      <span>root@panoptico:~#</span>
+      <input type="text" id="term-input" autocomplete="off" spellcheck="false" autofocus>
+    </div>
+  </div>
+
+  <div class="scanlines"></div>
+  <div class="cursor-dot" id="cursor-dot"></div>
+  <div class="cursor-outline" id="cursor-outline"></div>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">Permanent Record</div>
+      <nav class="nav" aria-label="Navegación principal">
+        <a href="#resumen" class="magnetic">Resumen</a>
+        <a href="#grafo" class="magnetic">Grafo</a>
+        <a href="#impresiones" class="magnetic">Impresiones</a>
+        <a href="#critica" class="magnetic">Crítica</a>
+        <a href="#timeline" class="magnetic">Cronología</a>
+        <a href="#glosario" class="magnetic">Glosario</a>
+        <a href="#autodefensa" class="magnetic">Autodefensa</a>
+        <button class="magnetic" onclick="toggleTerminal()" style="color:var(--cyan); border-color:var(--cyan);">>_ Terminal</button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="inicio">
+      <div class="shell hero-grid">
+        <div class="hero-copy">
+          <div class="eyebrow hero-kicker">Archivo / Vigilancia / Propiedad de datos</div>
+          <h1 class="hero-title"><span>Permanent</span><span>Record</span></h1>
+          <p class="hero-subtitle lede">
+            Edward Snowden no describe un simple exceso administrativo. Describe la infraestructura de un Estado
+            que aprendió a tratar la información privada como botín estratégico. El problema no es solo que vigile:
+            Es que reclama un monopolio práctico sobre lo que cada ciudadano es, hace y anticipa.
+          </p>
+          <figure class="hero-visual reveal" aria-label="Visualización estilizada de vigilancia y trazas de datos">
+            <svg viewBox="0 0 640 280" role="img" aria-hidden="true">
+              <defs>
+                <linearGradient id="heroGrid" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#66ffe0" stop-opacity="0.85" />
+                  <stop offset="100%" stop-color="#69b8ff" stop-opacity="0.4" />
+                </linearGradient>
+                <linearGradient id="sweepFill" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#66ffe0" stop-opacity="0" />
+                  <stop offset="75%" stop-color="#66ffe0" stop-opacity="0.22" />
+                  <stop offset="100%" stop-color="#66ffe0" stop-opacity="0.02" />
+                </linearGradient>
+              </defs>
+              <rect x="0" y="0" width="640" height="280" fill="transparent" />
+              <g opacity="0.14">
+                <path d="M0 42H640M0 98H640M0 154H640M0 210H640M80 0V280M180 0V280M280 0V280M380 0V280M480 0V280M580 0V280" stroke="url(#heroGrid)" />
+              </g>
+              <g class="orbit-ring">
+                <circle cx="160" cy="140" r="86" fill="none" stroke="rgba(102,255,224,0.18)" stroke-width="1.5" />
+                <circle cx="160" cy="140" r="58" fill="none" stroke="rgba(102,255,224,0.18)" stroke-width="1.5" />
+                <circle cx="160" cy="140" r="30" fill="none" stroke="rgba(102,255,224,0.18)" stroke-width="1.5" />
+              </g>
+              <g class="signal-sweep">
+                <path d="M160 140 L248 104 A100 100 0 0 1 252 176 Z" fill="url(#sweepFill)" />
+              </g>
+              <circle cx="160" cy="140" r="6" fill="var(--cyan)" style="transition: fill 0.5s;" />
+              <g class="fingerprint-lines" transform="translate(334 42)">
+                <path d="M70 16c-34 0-60 24-60 56 0 20 8 38 24 52" fill="none" stroke="var(--blue)" stroke-width="3" stroke-linecap="round" style="transition: stroke 0.5s;"/>
+                <path d="M88 28c-24 0-42 16-42 40 0 14 6 28 18 40" fill="none" stroke="var(--green)" stroke-width="3" stroke-linecap="round" style="transition: stroke 0.5s;"/>
+                <path d="M110 16c28 0 50 22 50 52 0 26-16 52-40 74" fill="none" stroke="var(--cyan)" stroke-width="3" stroke-linecap="round" style="transition: stroke 0.5s;"/>
+                <path d="M34 90c8 14 20 28 38 40 30 22 68 16 94-18" fill="none" stroke="var(--amber)" stroke-width="3" stroke-linecap="round" style="transition: stroke 0.5s;"/>
+                <path d="M18 112c10 20 26 38 48 52 44 28 92 16 126-28" fill="none" stroke="var(--cyan)" stroke-width="3" stroke-linecap="round" style="transition: stroke 0.5s;"/>
+              </g>
+              <g transform="translate(290 170)">
+                <rect x="0" y="0" width="318" height="72" rx="14" fill="rgba(5,22,31,0.62)" stroke="rgba(105,184,255,0.24)" />
+                <text x="18" y="24" fill="#d8f7ff" font-size="12" font-family="'IBM Plex Mono', monospace">SESSION TRACE:</text>
+                <text x="18" y="41" fill="#d8f7ff" font-size="11" font-family="'IBM Plex Mono', monospace">Movement, Time, Depth, Pattern</text>
+              </g>
+            </svg>
+            <figcaption class="hero-caption">Radar simbólico: Observar, correlacionar, archivar.</figcaption>
+          </figure>
+          <div class="pill-row">
+            <span class="tag">Trabajo académico interactivo</span>
+            <span class="tag">Estética Cyber-Y2K</span>
+            <span class="tag">Enfoque liberal sobre soberanía individual</span>
+          </div>
+          <div class="hero-actions" style="margin-top: 28px;">
+            <a class="button magnetic" href="#resumen">Entrar al dossier</a>
+            <a class="button alt magnetic" href="#grafo">Ver red de autores</a>
+          </div>
+        </div>
+
+        <aside class="hero-monitor" aria-label="Simulador del panóptico">
+          <div class="monitor-head">
+            <span>Panóptico</span>
+            <span><span class="status-dot"></span>tracking.live</span>
+          </div>
+          <div class="monitor-body">
+            <div class="terminal">metadatos capturados en esta sesión</div>
+            <div class="meta-screen">
+              <div class="meta-row">
+                <span class="meta-label">Browser / OS</span>
+                <strong class="meta-value" id="real-os">Detectando...</strong>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Resolución Monitor</span>
+                <strong class="meta-value" id="real-res">Analizando...</strong>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Idioma Local</span>
+                <strong class="meta-value" id="real-lang">Interceptando...</strong>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Cursor Vector</span>
+                <strong class="meta-value">[ <span id="cursor-x">0</span>, <span id="cursor-y">0</span> ]</strong>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Tiempo de Sesión</span>
+                <strong class="meta-value" id="time-on-page">00:00</strong>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Scroll Máximo</span>
+                <strong class="meta-value" id="scroll-depth">0%</strong>
+              </div>
+            </div>
+            
+            <div class="live-feed">
+              <div class="live-feed-header">
+                <span>>> LIVE_INTERCEPT_LOG</span>
+                <span style="color: var(--danger)">REC</span>
+              </div>
+              <div class="feed-content" id="feed-content">
+                <!-- Data inyectada via JS -->
+              </div>
+            </div>
+
+            <div class="alarm">
+              Lo inquietante no es que esta demo capture solo migajas. Lo inquietante es lo fácil que resulta medir, perfilar y anticipar conducta basándose en datos que regalas en cada conexión.
+            </div>
+          </div>
+          <div class="monitor-foot">
+            <span>consent.false</span>
+            <span>property.rights?</span>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="resumen">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div>
+            <div class="eyebrow">Sección 1</div>
+            <h2>Resumen y argumentos</h2>
+          </div>
+          <p>
+            Snowden presenta su historia como una biografía técnica del descubrimiento moral: comprender el aparato de
+            inteligencia desde dentro y concluir que un Estado sin límites tiende a recolectarlo todo porque la
+            información es poder. Aquí se resume su tesis y también sus objeciones más duras.
+          </p>
+        </div>
+
+        <div class="grid-2">
+          <div class="reveal" style="display: grid; gap: 18px;">
+            <article class="panel">
+              <div class="terminal">Resumen</div>
+              <p>
+                <em>Permanent Record</em> arranca como una memoria de formación y termina como una acusación política. Snowden
+                cuenta primero su fascinación temprana por la informática, internet y la promesa de una red abierta donde el
+                individuo corriente podía aprender, construir y comunicarse sin pedir permiso. Ese punto de partida importa
+                porque el libro no nace del odio ideológico a Estados Unidos, sino de una mezcla de patriotismo, ambición
+                técnica y fe inicial en que las instituciones de seguridad servían para proteger una sociedad libre.
+              </p>
+              <div class="divider"></div>
+              <p>
+                La segunda parte sigue su entrada progresiva en el aparato de inteligencia tras el impacto del 11-S. Snowden
+                describe cómo pasa de trabajar en entornos técnicos y de seguridad a descubrir, cada vez con mayor claridad,
+                la lógica interna del sistema: recopilar, conservar, indexar y compartir información a una escala muy por
+                encima de la que el ciudadano imagina. Lo decisivo no es un solo programa, sino la normalización de una
+                cultura burocrática que trata cualquier dato disponible como recurso legítimo del Estado.
+              </p>
+              <div class="divider"></div>
+              <p>
+                El núcleo dramático del libro llega cuando comprende que esa maquinaria no está dirigida solo a enemigos
+                concretos, sino que ha terminado absorbiendo la vida cotidiana de poblaciones enteras. Ahí cambia la
+                pregunta moral. Ya no se trata de si la inteligencia necesita secretos, sino de si una república puede
+                seguir llamándose libre cuando el gobernante aspira a saberlo todo del gobernado. Snowden ve que el secreto
+                institucional, la jerga técnica y la supervisión decorativa han creado una zona donde el poder actúa primero
+                y rinde cuentas después, si es que llega a rendirlas.
+              </p>
+              <div class="divider"></div>
+              <p>
+                El desenlace del libro es la decisión de filtrar. Snowden narra ese paso no como gesto romántico, sino como
+                cálculo frío ante un sistema que, a su juicio, ya no podía corregirse por los canales ordinarios. Publicar
+                los documentos significaba destruir su carrera, su país de residencia, su anonimato y buena parte de su vida
+                privada. Pero también significaba devolver al público una discusión que el Estado había secuestrado bajo la
+                coartada de la seguridad. Por eso el libro funciona a la vez como autobiografía, testimonio técnico y
+                advertencia constitucional.
+              </p>
+            </article>
+
+            <div class="accordion" aria-label="Argumentos principales">
+            <article class="accordion-item open">
+              <button class="accordion-trigger magnetic" type="button" aria-expanded="true">
+                <strong>1. La vigilancia masiva invierte la presunción liberal</strong>
+                <span>El ciudadano deja de ser inocente hasta prueba en contrario y pasa a ser una base de datos preventiva.</span>
+                <span class="accordion-icon">+</span>
+              </button>
+              <div class="accordion-panel">
+                <div>
+                  <div class="accordion-content">
+                    <p>
+                      Snowden argumenta que recopilar metadatos de millones de personas no es una medida quirúrgica, sino
+                      una redefinición de la relación entre gobernante y gobernado. El Estado se otorga a sí mismo la
+                      capacidad de mirar antes de justificar por qué mira.
+                    </p>
+                    <p>
+                      En la práctica, eso altera el pacto liberal clásico. Antes, el poder debía tener una sospecha concreta
+                      para entrar en tu esfera privada. En el mundo que describe Snowden, esa secuencia se invierte: Primero
+                      se recolecta, luego se filtra, después se interpreta y, solo al final, se inventa una legitimación
+                      retrospectiva. El ciudadano ya no comparece como sujeto de derechos, sino como rastro disponible.
+                    </p>
+                    <p class="quote-box">
+                      La implicación filosófica es clara: la privacidad no es un lujo sentimental, es la zona de autonomía
+                      que impide que el poder publique un inventario completo de tu vida.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="accordion-item">
+              <button class="accordion-trigger magnetic" type="button" aria-expanded="false">
+                <strong>2. La arquitectura técnica crea tentación política permanente</strong>
+                <span>Una vez construido el sistema, el incentivo natural es reutilizarlo, ampliarlo y normalizarlo.</span>
+                <span class="accordion-icon">+</span>
+              </button>
+              <div class="accordion-panel">
+                <div>
+                  <div class="accordion-content">
+                    <p>
+                      El libro insiste en que la tecnología no es neutral cuando queda absorbida por agencias con baja
+                      transparencia y alto presupuesto. El problema no es solo espionaje exterior; es la difuminación de
+                      fronteras entre inteligencia, policía, contratistas privados y plataformas digitales.
+                    </p>
+                    <p>
+                      Cuando la capacidad existe, la burocracia la vende como imprescindible. Y lo que ayer era excepcional
+                      mañana se convierte en infraestructura ordinaria de gobierno.
+                    </p>
+                    <p>
+                      Snowden cuenta cómo esa expansión se vuelve casi invisible desde dentro porque cada actor solo toca una
+                      parte del sistema y se convence de que hace una tarea técnica, no una intervención política. Pero la
+                      suma de piezas produce una máquina que ya no quiere casos concretos, sino dominio panorámico:
+                      Mapa completo de contactos, rutinas, ubicaciones, preferencias y vulnerabilidades.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="accordion-item">
+              <button class="accordion-trigger magnetic" type="button" aria-expanded="false">
+                <strong>3. El cifrado y la responsabilidad cívica son la respuesta mínima</strong>
+                <span>Snowden cree que la defensa individual y el escrutinio público pueden elevar el coste del abuso.</span>
+                <span class="accordion-icon">+</span>
+              </button>
+              <div class="accordion-panel">
+                <div>
+                  <div class="accordion-content">
+                    <p>
+                      Su apuesta es doble: herramientas de seguridad para el individuo y coraje institucional para filtrar
+                      abusos cuando los canales internos son fachada. No es una solución total, pero sí un freno práctico.
+                    </p>
+                    <p>
+                      La parte más discutible es su fe en que la criptografía, por sí sola, puede sostener una defensa de
+                      largo plazo frente a sistemas de vigilancia cada vez más automatizados e integrados con IA.
+                    </p>
+                    <p>
+                      Aun así, el libro deja una lección fuerte: La libertad política no se conserva solo votando o
+                      indignándose, también se conserva cerrando puertas técnicas. Snowden trata el cifrado como una forma
+                      mínima de dignidad cívica: Si el poder desea inspeccionarlo todo, el individuo decente aprende a no
+                      entregarlo todo en texto plano.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </article>
+            </div>
+          </div>
+
+          <aside class="panel reveal">
+            <div class="terminal">Contraargumentos</div>
+            <ul class="list">
+              <li>
+                <strong>Halcones de seguridad nacional:</strong> sostienen que recolectar a gran escala es racional porque
+                la amenaza terrorista o geopolítica exige correlación masiva de datos y reacción rápida.
+              </li>
+              <li>
+                <strong>Utilitarismo estatal:</strong> acepta sacrificar intimidad de muchos si el aparato promete un
+                beneficio colectivo abstracto.
+              </li>
+              <li>
+                <strong>El sofisma de "Nada que ocultar":</strong> argumenta que solo los delincuentes necesitan privacidad. Ignora que la intimidad es un requisito básico para el libre desarrollo, la disidencia política y la dignidad humana.
+              </li>
+            </ul>
+            <div class="divider"></div>
+            <div class="quote-box">
+              <p>"Asumir que no te importa la privacidad porque no tienes nada que ocultar es como decir que no te importa la libertad de expresión porque no tienes nada que decir."</p>
+            </div>
+            <div class="divider"></div>
+            <p>
+              Mi lectura: Estos contraargumentos parten de una premisa dudosa, que la seguridad colectiva autoriza al
+              Estado a penetrar toda esfera privada. Esa premisa liquida el corazón del constitucionalismo liberal:
+              Limitar el poder incluso cuando el poder se presenta como salvador.
+            </p>
+            <br>
+            <p>
+              Ceder nuestra soberanía de datos bajo la promesa de protección requiere una fe ciega en la pureza moral de quienes administran el Estado, algo que la historia desmiente constantemente.
+            </p>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section id="grafo">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div>
+            <div class="eyebrow">Sección 2</div>
+            <h2>La red de autores</h2>
+          </div>
+          <p>
+            El libro dialoga con varias tradiciones: la genealogía del poder, la ciberseguridad aplicada, la crítica de la
+            opacidad estatal y la idea de que la tecnología puede hackear conductas. El grafo conecta esas escuelas.
+          </p>
+        </div>
+
+        <div class="graph-layout">
+          <div class="panel graph-box">
+            <svg id="author-graph" role="img" aria-label="Grafo interactivo de autores y conexiones intelectuales"></svg>
+          </div>
+          <aside class="panel author-info reveal" id="author-info">
+            <div class="terminal">Perfil seleccionado</div>
+            <h3 id="author-name">Edward Snowden</h3>
+            <span class="tag" id="author-school">Libertarismo cívico / whistleblower</span>
+            <p id="author-summary">
+              Ex contratista de inteligencia que denuncia la escala industrial de la vigilancia masiva y plantea la
+              privacidad como condición de la libertad política.
+            </p>
+            <div class="info-row">
+              <span class="info-label">Conexión con vigilancia</span>
+              <strong class="info-value" id="author-connection">La expone desde dentro y la vuelve visible al público.</strong>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Afinidad / tensión</span>
+              <strong class="info-value" id="author-tension">Coincide con Schneier en la necesidad de seguridad; choca con Foucault en el remedio normativo.</strong>
+            </div>
+            <ul class="list" id="author-links">
+              <li>Haz clic en otro nodo para actualizar escuela, postura y conexiones.</li>
+            </ul>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section id="impresiones">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div>
+            <div class="eyebrow">Sección 3</div>
+            <h2>Impresiones personales</h2>
+          </div>
+          <p>
+            Esta parte no resume: Juzga. El valor del libro está en mostrar la mentalidad de un aparato que no tolera
+            zonas ciegas. Su límite está en creer que mejores herramientas pueden compensar incentivos políticos podridos.
+          </p>
+        </div>
+
+        <div class="impression-grid">
+          <article class="panel reveal">
+            <div class="terminal">Lo que convence</div>
+            <p>
+              Convence su descripción del Estado profundo como sistema y no como conspiración folclórica. No hace falta una
+              reunión secreta en una habitación oscura: Basta una cadena estable de agencias, contratistas, presupuestos
+              clasificados y jueces deferentes. El libro demuestra que el problema real no es un funcionario malvado, sino
+              un ecosistema incentivado a expandir prerrogativas sin coste político visible.
+            </p>
+            <div class="divider"></div>
+            <p>
+              También convence su intuición central: los datos personales son extensión de la persona. Si la propiedad
+              privada importa, entonces mi historial, mis patrones de relación y mis comunicaciones no deberían quedar a
+              disposición rutinaria de una máquina estatal que presume derecho de inspección total.
+            </p>
+          </article>
+
+          <article class="panel evidence-wall reveal">
+            <div class="terminal">Panel visual / Expediente</div>
+            <div class="evidence-graphic">
+              <svg viewBox="0 0 620 320" role="img" aria-label="Muro de evidencia digital con retrato abstracto y trazas">
+                <defs>
+                  <linearGradient id="portraitGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="var(--cyan)" stop-opacity="0.9" />
+                    <stop offset="100%" stop-color="var(--blue)" stop-opacity="0.45" />
+                  </linearGradient>
+                </defs>
+                <rect x="0" y="0" width="620" height="320" fill="transparent" />
+                <g opacity="0.12">
+                  <path d="M0 64H620M0 128H620M0 192H620M0 256H620M78 0V320M156 0V320M234 0V320M312 0V320M390 0V320M468 0V320M546 0V320" stroke="var(--cyan)" />
+                </g>
+                <g class="fingerprint-lines" transform="translate(44 38)">
+                  <rect x="0" y="0" width="220" height="244" rx="18" fill="rgba(3,12,18,0.62)" stroke="var(--line)" />
+                  <circle cx="110" cy="76" r="44" fill="none" stroke="url(#portraitGlow)" stroke-width="2.5" />
+                  <path d="M64 176c12-34 42-50 84-50 42 0 72 16 84 50" fill="none" stroke="url(#portraitGlow)" stroke-width="3" stroke-linecap="round" />
+                  <text x="22" y="222" fill="#d8f7ff" font-size="14" font-family="'IBM Plex Mono', monospace">SUBJECT: Ciudadano conectado</text>
+                  <text x="22" y="244" fill="var(--muted)" font-size="11" font-family="'IBM Plex Mono', monospace">Riesgo principal: Trazabilidad rutinaria</text>
+                </g>
+                <g transform="translate(310 52)">
+                  <rect x="0" y="0" width="282" height="112" rx="16" fill="rgba(6,23,33,0.72)" stroke="var(--line)" />
+                  <text x="16" y="26" fill="var(--cyan)" font-size="12" font-family="'IBM Plex Mono', monospace">Correlación de patrones</text>
+                  <text x="16" y="50" fill="#d8f7ff" font-size="11" font-family="'IBM Plex Mono', monospace">- Relación entre ubicación</text>
+                  <text x="16" y="67" fill="#d8f7ff" font-size="11" font-family="'IBM Plex Mono', monospace">  y contacto frecuente</text>
+                  <text x="16" y="88" fill="#d8f7ff" font-size="11" font-family="'IBM Plex Mono', monospace">- Tiempo de conexión como</text>
+                  <text x="16" y="105" fill="#d8f7ff" font-size="11" font-family="'IBM Plex Mono', monospace">  perfil conductual</text>
+                </g>
+                <g transform="translate(310 174)">
+                  <rect x="0" y="0" width="282" height="124" rx="16" fill="rgba(6,23,33,0.72)" stroke="var(--green)" />
+                  <text x="16" y="26" fill="var(--green)" font-size="12" font-family="'IBM Plex Mono', monospace">Tesis del expediente</text>
+                  <text x="16" y="52" fill="#d8f7ff" font-size="11" font-family="'IBM Plex Mono', monospace">Toda comodidad digital</text>
+                  <text x="16" y="69" fill="#d8f7ff" font-size="11" font-family="'IBM Plex Mono', monospace">deja un rastro.</text>
+                  <text x="16" y="88" fill="#d8f7ff" font-size="11" font-family="'IBM Plex Mono', monospace">Todo rastro apetecible tiende</text>
+                  <text x="16" y="105" fill="#d8f7ff" font-size="11" font-family="'IBM Plex Mono', monospace">a ser capturado.</text>
+                </g>
+              </svg>
+            </div>
+            <div class="evidence-tags">
+              <span class="tag">biometría</span>
+              <span class="tag">correlación</span>
+              <span class="tag">perfilado</span>
+            </div>
+          </article>
+
+          <article class="panel reveal">
+            <div class="terminal">Lo que no compro</div>
+            <p>
+              Snowden a veces parece pensar que una ciudadanía técnicamente alfabetizada y un cifrado robusto bastan para
+              restaurar el equilibrio. Ese diagnóstico se queda corto ante un presente donde IA, analítica predictiva y
+              fusión de bases de datos convierten incluso huellas fragmentarias en perfiles bastante precisos.
+            </p>
+            <div class="divider"></div>
+            <p>
+              Lo anticuado no es su advertencia, sino una parte de su solución. El cifrado sigue siendo indispensable, pero
+              ya no es el final del camino. La defensa actual exige fricción política, descentralización institucional,
+              mercados tecnológicos menos capturados y una cultura de responsabilidad individual más dura.
+            </p>
+            <div class="divider"></div>
+            <p>
+              En otras palabras: La criptografía sin carácter cívico termina siendo un buen casco en una ciudad gobernada
+              por tanques.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="critica">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div>
+            <div class="eyebrow">Sección 4</div>
+            <h2>Crítica y defensa hardcore</h2>
+          </div>
+          <p>
+            Tres tesis de Snowden sometidas a juicio severo. No basta con repetir el libro; hace falta decidir dónde es
+            brillante, dónde es ingenuo y dónde un liberal serio debe endurecer el argumento.
+          </p>
+        </div>
+
+        <div class="critical-grid">
+          <article class="card reveal">
+            <div class="stance">Defensa fuerte</div>
+            <h3>Argumento: La vigilancia masiva desfigura la libertad</h3>
+            <p>
+              Defensa: Correcto y central. Sin esfera privada no existe individuo soberano, solo administrado temporal.
+              Quien controla los datos controla incentivos, reputación y riesgo legal. La libertad económica sin privacidad
+              es una carcasa hueca.
+            </p>
+            <div class="divider"></div>
+            <p>
+              En clave liberal-conservadora, esto no es sentimentalismo digital; es defensa de límites institucionales. El
+              Estado debe perseguir delitos concretos, no levantar catastros permanentes sobre poblaciones enteras.
+            </p>
+          </article>
+
+          <article class="card reveal">
+            <div class="stance">Ataque brutal</div>
+            <h3>Argumento: El sistema puede corregirse desde dentro</h3>
+            <p>
+              Crítica: Demasiado optimista. La burocracia rara vez se recorta a sí misma porque crecer es su lógica
+              natural. Esperar moderación voluntaria de agencias blindadas por secreto, presupuesto y patriotismo ritual es
+              casi una fantasía cívica.
+            </p>
+            <div class="divider"></div>
+            <p>
+              Si el incentivo estructural es acumular poder, la respuesta no puede ser confianza moral en el funcionario
+              correcto. Debe haber competencia institucional, litigio agresivo, prensa hostil y costes reales por mentir al
+              público.
+            </p>
+          </article>
+
+          <article class="card reveal">
+            <div class="stance">Defensa con corrección</div>
+            <h3>Argumento: El cifrado empodera al individuo</h3>
+            <p>
+              Defensa parcial: Sí, porque eleva el precio del espionaje y devuelve margen de maniobra al ciudadano. Pero no
+              alcanza si se lo presenta como remedio casi autosuficiente.
+            </p>
+            <div class="divider"></div>
+            <p>
+              Corrección necesaria: Hoy se requiere una estrategia de soberanía distribuida. Cifrado, sistemas abiertos,
+              higiene operativa, minimización de datos y rechazo frontal a la comodidad servil que intercambia autonomía por
+              conveniencia instantánea.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="timeline">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div>
+            <div class="eyebrow">Sección 5 y 6</div>
+            <h2>Cronología del Leviatán</h2>
+          </div>
+          <p>
+            La demo del hero da el susto. Esta línea temporal muestra el proceso político: Excepciones legales, programas
+            secretos y normalización administrativa hasta que la vigilancia parece sentido común.
+          </p>
+        </div>
+
+        <div class="timeline-wrap reveal">
+          <div class="timeline-scroll" aria-label="Cronología horizontal de la vigilancia masiva">
+            <article class="timeline-card magnetic">
+              <div class="timeline-year">2001</div>
+              <h3>Patriot Act</h3>
+              <p>
+                Tras el 11-S, el miedo abre la puerta. El Estado obtiene nuevas herramientas de acceso y una legitimidad
+                emocional extraordinaria para pedir más y justificar menos.
+              </p>
+              <div class="timeline-bar"></div>
+            </article>
+            <article class="timeline-card magnetic">
+              <div class="timeline-year">2004-2006</div>
+              <h3>Expansiones silenciosas</h3>
+              <p>
+                Se consolida la cooperación entre agencias, contratistas y gigantes de telecomunicaciones. La lógica del
+                dato total gana terreno porque la infraestructura ya existe y nadie quiere apagarla.
+              </p>
+              <div class="timeline-bar"></div>
+            </article>
+            <article class="timeline-card magnetic">
+              <div class="timeline-year">2007</div>
+              <h3>PRISM y recolección escalable</h3>
+              <p>
+                La vigilancia deja de ser artesanal. Pasa a ser plataforma. El volumen importa menos que la capacidad de
+                indexar, cruzar y conservar.
+              </p>
+              <div class="timeline-bar"></div>
+            </article>
+            <article class="timeline-card magnetic">
+              <div class="timeline-year">2013</div>
+              <h3>Revelaciones de Snowden</h3>
+              <p>
+                Se rompe la ilusión de control democrático. El público descubre que la excepción era rutina y que la
+                supervisión prometida era, en gran parte, teatro jurídico.
+              </p>
+              <div class="timeline-bar"></div>
+            </article>
+            <article class="timeline-card magnetic">
+              <div class="timeline-year">2015</div>
+              <h3>USA Freedom Act</h3>
+              <p>
+                Llegan correcciones parciales. Importantes, pero limitadas. El Leviatán no retrocede por voluntad moral; se
+                adapta, externaliza y reetiqueta.
+              </p>
+              <div class="timeline-bar"></div>
+            </article>
+            <article class="timeline-card magnetic">
+              <div class="timeline-year">2020+</div>
+              <h3>IA y perfilado conductual</h3>
+              <p>
+                El nuevo frente es inferencial. Ya no importa solo lo que dices, sino lo que modelos estadísticos creen que
+                vas a hacer. La vigilancia se vuelve pronóstico.
+              </p>
+              <div class="timeline-bar"></div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="glosario">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div>
+            <div class="eyebrow">Sección 7</div>
+            <h2>Glosario hacker</h2>
+          </div>
+          <p>
+            Conceptos clave del libro llevados a tarjetas 3D. El frente resume; el reverso define con precisión política y
+            técnica.
+          </p>
+        </div>
+
+        <div class="glossary-grid">
+          <article class="flip-card reveal magnetic" tabindex="0">
+            <div class="flip-card-inner">
+              <div class="flip-face front">
+                <div class="flip-index">01</div>
+                <h3>Metadata</h3>
+                <p>Lo que parece residuo técnico suele ser mapa social completo.</p>
+              </div>
+              <div class="flip-face back">
+                <h3>Metadata</h3>
+                <p>
+                  Datos sobre tus datos: Con quién hablas, cuándo, desde dónde, con qué frecuencia. No revela solo
+                  contenido; revela estructura, hábitos y jerarquías de tu vida.
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <article class="flip-card reveal magnetic" tabindex="0">
+            <div class="flip-card-inner">
+              <div class="flip-face front">
+                <div class="flip-index">02</div>
+                <h3>PRISM</h3>
+                <p>Programa símbolo de la recolección escalable apoyada en plataformas.</p>
+              </div>
+              <div class="flip-face back">
+                <h3>PRISM</h3>
+                <p>
+                  Sistema asociado a la obtención de datos desde grandes proveedores de internet. Importa porque muestra la
+                  fusión entre infraestructura privada y demanda estatal de inteligencia.
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <article class="flip-card reveal magnetic" tabindex="0">
+            <div class="flip-card-inner">
+              <div class="flip-face front">
+                <div class="flip-index">03</div>
+                <h3>Panóptico</h3>
+                <p>Ver sin ser visto modifica conducta incluso sin violencia visible.</p>
+              </div>
+              <div class="flip-face back">
+                <h3>Panóptico</h3>
+                <p>
+                  Imagen de control donde la posibilidad de observación permanente disciplina al sujeto. En versión digital,
+                  el guardia es algoritmo, retention policy y autoridad difusa.
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <article class="flip-card reveal magnetic" tabindex="0">
+            <div class="flip-card-inner">
+              <div class="flip-face front">
+                <div class="flip-index">04</div>
+                <h3>Cifrado</h3>
+                <p>La cerradura básica de la era informacional.</p>
+              </div>
+              <div class="flip-face back">
+                <h3>Cifrado</h3>
+                <p>
+                  Proceso que vuelve ilegible la información para terceros no autorizados. No elimina la lucha política,
+                  pero resta comodidad al espía y devuelve coste al intruso.
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <article class="flip-card reveal magnetic" tabindex="0">
+            <div class="flip-card-inner">
+              <div class="flip-face front">
+                <div class="flip-index">05</div>
+                <h3>Whistleblower</h3>
+                <p>Filtrar no como capricho, sino como último recurso ante una pared cerrada.</p>
+              </div>
+              <div class="flip-face back">
+                <h3>Whistleblower</h3>
+                <p>
+                  Persona que revela abusos institucionales cuando los canales internos son ineficaces o decorativos. En el
+                  caso Snowden, la filtración reabre una discusión constitucional que el secreto había secuestrado.
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <article class="flip-card reveal magnetic" tabindex="0">
+            <div class="flip-card-inner">
+              <div class="flip-face front">
+                <div class="flip-index">06</div>
+                <h3>Soberanía digital</h3>
+                <p>No depender pasivamente de sistemas hostiles para pensar y comunicar.</p>
+              </div>
+              <div class="flip-face back">
+                <h3>Soberanía digital</h3>
+                <p>
+                  Capacidad de un individuo para decidir herramientas, custodiar claves y limitar la extracción de datos.
+                  Es autonomía aplicada, no estética hacker.
+                </p>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="autodefensa">
+      <div class="shell">
+        <div class="section-head reveal">
+          <div>
+            <div class="eyebrow">Sección 8</div>
+            <h2>Autodefensa digital</h2>
+          </div>
+          <p>
+            Si el Estado y las plataformas maximizan captura de información, la respuesta madura no es paranoia teatral,
+            sino disciplina. Privacidad es responsabilidad personal sostenida por herramientas y hábitos.
+          </p>
+        </div>
+
+        <div class="tool-grid">
+          <article class="tool reveal magnetic">
+              <div class="tool-badge">TOR</div>
+              <h3>Tor Browser</h3>
+              <p>Reduce trazabilidad de origen y dificulta correlaciones triviales.</p>
+          </article>
+          <article class="tool reveal magnetic">
+              <div class="tool-badge">SG</div>
+              <h3>Signal</h3>
+              <p>Mensajería cifrada robusta que anula la lectura en tránsito.</p>
+          </article>
+          <article class="tool reveal magnetic">
+              <div class="tool-badge">PGP</div>
+            <h3>Criptografía</h3>
+            <p>Forma concreta de afirmar propiedad sobre información propia.</p>
+          </article>
+          <article class="tool reveal magnetic">
+              <div class="tool-badge">MIN</div>
+            <h3>Minimización</h3>
+            <p>La defensa fundamental: producir menos rastro inútil online.</p>
+          </article>
+        </div>
+
+        <div class="grid-2" style="margin-top: 24px;">
+          <article class="panel reveal">
+            <div class="terminal">Principio rector</div>
+            <p class="lede">
+              Un ciudadano libre no delega ciegamente la custodia de su vida digital. La comodidad es útil, pero cuando se
+              convierte en sumisión a sistemas opacos deja de ser servicio y pasa a ser adiestramiento.
+            </p>
+          </article>
+          <article class="panel reveal">
+            <div class="terminal">Cierre argumental</div>
+            <p class="lede">
+              El legado de <em>Permanent Record</em> no es pedir un Estado más amable. Es recordar que cualquier poder sin
+              freno tiende a inspeccionarlo todo, archivar todo y justificarlo después. La privacidad importa porque la
+              persona no es materia prima del soberano.
+            </p>
+          </article>
+        </div>
+
+        <div class="exposure-grid">
+          <article class="panel exposure-panel reveal">
+            <div class="terminal">Autodiagnóstico de exposición</div>
+            <div class="range-row">
+              <label for="apps-range">Apps con permisos invasivos <output id="apps-output">6</output></label>
+              <input id="apps-range" type="range" min="0" max="10" value="6">
+            </div>
+            <div class="range-row">
+              <label for="cloud-range">Dependencia de nube cerrada <output id="cloud-output">7</output></label>
+              <input id="cloud-range" type="range" min="0" max="10" value="7">
+            </div>
+            <div class="range-row">
+              <label for="habits-range">Higiene operativa personal <output id="habits-output">3</output></label>
+              <input id="habits-range" type="range" min="0" max="10" value="3">
+            </div>
+            <p id="exposure-copy" style="margin-top:10px;">
+              Resultado preliminar: Tu rutina digital sigue ofreciendo más comodidad que resistencia. Reducir superficie de
+              ataque exige menos entrega automática y más disciplina diaria.
+            </p>
+          </article>
+          <article class="panel score-wrap reveal">
+            <div class="score-dial" id="score-dial">
+              <div class="score-core">
+                <div class="score-value" id="score-value">72</div>
+                <div class="score-state" id="score-state">riesgo medio-alto</div>
+                <p class="score-note" id="score-note">Perfil atractivo para recolección automatizada.</p>
+              </div>
+            </div>
+          </article>
+        </div>
+        
+        <div class="footer-note reveal">
+          [ END OF FILE ] // CONEXIÓN CERRADA // SOBRESCRIBIENDO REGISTROS...
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // --- TERMINAL INTERACTIVA ---
+    const termOverlay = document.getElementById('terminal-overlay');
+    const termInput = document.getElementById('term-input');
+    const termOutput = document.getElementById('term-output');
+    let terminalOpen = false;
+
+    function toggleTerminal() {
+      terminalOpen = !terminalOpen;
+      if(terminalOpen) {
+        termOverlay.classList.add('active');
+        setTimeout(() => termInput.focus(), 100);
+      } else {
+        termOverlay.classList.remove('active');
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if(e.key === '`' || e.key === 'Dead' || e.key === '~') {
+        e.preventDefault();
+        toggleTerminal();
+      }
+      if(e.key === 'Escape' && terminalOpen) {
+        toggleTerminal();
+      }
+    });
+
+    function printTerm(text, type = '') {
+      const d = document.createElement('div');
+      d.className = `term-line ${type}`;
+      d.textContent = text;
+      termOutput.appendChild(d);
+      termOverlay.scrollTop = termOverlay.scrollHeight;
+    }
+
+    termInput.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter') {
+        const val = termInput.value.trim().toLowerCase();
+        printTerm(`root@panoptico:~# ${val}`);
+        termInput.value = '';
+        
+        switch(val) {
+          case 'help':
+            printTerm("Comandos disponibles: clear, whoami, status, exit", "sys");
+            break;
+          case 'clear':
+            termOutput.innerHTML = '';
+            break;
+          case 'whoami':
+            printTerm("Sujeto de datos #9924-A. Estado: Bajo vigilancia permanente.", "warn");
+            break;
+          case 'status':
+            printTerm("Sistemas de captura funcionales. Telemetría 100%.", "sys");
+            break;
+          case 'exit':
+            toggleTerminal();
+            break;
+          case '':
+            break;
+          default:
+            printTerm(`bash: ${val}: command not found`, "err");
+        }
+      }
+    });
+
+    // --- FEATURE 1: HUELLA DIGITAL REAL ---
+    document.addEventListener("DOMContentLoaded", () => {
+      const elOs = document.getElementById("real-os");
+      const elRes = document.getElementById("real-res");
+      const elLang = document.getElementById("real-lang");
+      
+      if(elOs) {
+        const ua = navigator.userAgent;
+        let osName = "Sistema Desconocido";
+        if(ua.indexOf("Win") !== -1) osName = "Windows OS";
+        if(ua.indexOf("Mac") !== -1) osName = "Mac OS / iOS";
+        if(ua.indexOf("Linux") !== -1) osName = "Linux OS";
+        if(ua.indexOf("Android") !== -1) osName = "Android OS";
+        
+        let browserName = "Navegador";
+        if(ua.indexOf("Chrome") !== -1) browserName = "Chrome";
+        else if(ua.indexOf("Firefox") !== -1) browserName = "Firefox";
+        else if(ua.indexOf("Safari") !== -1) browserName = "Safari";
+        
+        elOs.textContent = `${osName} [${browserName}]`;
+      }
+      if(elRes) {
+        elRes.textContent = `${window.screen.width}x${window.screen.height} px`;
+      }
+      if(elLang) {
+        elLang.textContent = navigator.language || navigator.userLanguage || "Desconocido";
+      }
+    });
+
+    // --- CURSOR PERSONALIZADO ---
+    const cursorDot = document.getElementById("cursor-dot");
+    const cursorOutline = document.getElementById("cursor-outline");
+    
+    if(!reducedMotion && window.innerWidth > 720) {
+      window.addEventListener("mousemove", (e) => {
+        const x = e.clientX;
+        const y = e.clientY;
+        cursorDot.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+        cursorOutline.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+      });
+
+      window.addEventListener("mousedown", () => cursorOutline.classList.add("click"));
+      window.addEventListener("mouseup", () => cursorOutline.classList.remove("click"));
+
+      const interactables = document.querySelectorAll("a, button, input[type='text'], input[type='range'], .magnetic, .accordion-trigger");
+      interactables.forEach(el => {
+        el.addEventListener("mouseenter", () => cursorOutline.classList.add("hover"));
+        el.addEventListener("mouseleave", () => cursorOutline.classList.remove("hover"));
+      });
+    }
+
+    // --- TYPEWRITER EFECT AUTOMÁTICO EN TODOS LOS .terminal ---
+    const terminals = document.querySelectorAll(".terminal");
+    const termObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if(entry.isIntersecting) {
+          const el = entry.target;
+          if (el.classList.contains("typed")) return;
+          el.classList.add("typed");
+          
+          let text = el.getAttribute("data-text");
+          if (!text) {
+            text = el.textContent;
+            el.setAttribute("data-text", text);
+          }
+          el.textContent = "";
+          
+          let i = 0;
+          const type = () => {
+            if (i < text.length) {
+              el.textContent += text.charAt(i);
+              i++;
+              setTimeout(type, 30 + Math.random() * 60);
+            }
+          };
+          type();
+        }
+      });
+    }, { threshold: 0.8 });
+    
+    terminals.forEach(t => termObserver.observe(t));
+
+    // --- LIVE DATA FEED (MONITOR) ---
+    const feedContent = document.getElementById("feed-content");
+    const feedLogs = [
+      "Extrayendo metadata de nodo...",
+      "Cruzando firmas digitales.",
+      "Anomalía detectada en puerto 443.",
+      "Cifrado detectado. Intentando bypass...",
+      "Conexión con satélite G-77 establecida.",
+      "Resolviendo huella de dispositivo.",
+      "Inyectando payload de telemetría."
+    ];
+    
+    function addFeedLog() {
+      if(reducedMotion) return;
+      const p = document.createElement("div");
+      p.className = "feed-line"; 
+      const randomIp = `${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.X`;
+      const action = feedLogs[Math.floor(Math.random() * feedLogs.length)];
+      p.textContent = `[${randomIp}] - ${action}`;
+      
+      feedContent.prepend(p);
+      if(feedContent.children.length > 5) {
+        feedContent.removeChild(feedContent.lastChild);
+      }
+      setTimeout(addFeedLog, 1500 + Math.random() * 2500);
+    }
+    setTimeout(addFeedLog, 1000);
+
+    // --- ACCORDIONES ---
+    const accordionItems = document.querySelectorAll(".accordion-item");
+    accordionItems.forEach((item) => {
+      const button = item.querySelector(".accordion-trigger");
+      button.addEventListener("click", () => {
+        const isOpen = item.classList.contains("open");
+        accordionItems.forEach((entry) => {
+          entry.classList.remove("open");
+          entry.querySelector(".accordion-trigger").setAttribute("aria-expanded", "false");
+        });
+        if (!isOpen) {
+          item.classList.add("open");
+          button.setAttribute("aria-expanded", "true");
+        }
+      });
+    });
+
+    // --- TRACKING SIMULADO ---
+    const cursorX = document.getElementById("cursor-x");
+    const cursorY = document.getElementById("cursor-y");
+    const timeOnPage = document.getElementById("time-on-page");
+    const scrollDepth = document.getElementById("scroll-depth");
+
+    let maxScroll = 0;
+    let seconds = 0;
+
+    window.addEventListener("pointermove", (event) => {
+      cursorX.textContent = Math.round(event.clientX);
+      cursorY.textContent = Math.round(event.clientY);
+    });
+
+    window.addEventListener("scroll", () => {
+      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+      const depth = scrollable > 0 ? (window.scrollY / scrollable) * 100 : 0;
+      maxScroll = Math.max(maxScroll, depth);
+      if(scrollDepth) scrollDepth.textContent = `${Math.round(maxScroll)}%`;
+    }, { passive: true });
+
+    setInterval(() => {
+      seconds += 1;
+      const mins = String(Math.floor(seconds / 60)).padStart(2, "0");
+      const secs = String(seconds % 60).padStart(2, "0");
+      if(timeOnPage) timeOnPage.textContent = `${mins}:${secs}`;
+    }, 1000);
+
+    // --- SCORING EXPOSURE ---
+    const exposureControls = [
+      { input: document.getElementById("apps-range"), output: document.getElementById("apps-output") },
+      { input: document.getElementById("cloud-range"), output: document.getElementById("cloud-output") },
+      { input: document.getElementById("habits-range"), output: document.getElementById("habits-output") }
+    ];
+    const scoreDial = document.getElementById("score-dial");
+    const scoreValue = document.getElementById("score-value");
+    const scoreState = document.getElementById("score-state");
+    const scoreNote = document.getElementById("score-note");
+    const exposureCopy = document.getElementById("exposure-copy");
+
+    function updateExposureScore() {
+      const apps = Number(exposureControls[0].input.value);
+      const cloud = Number(exposureControls[1].input.value);
+      const habits = Number(exposureControls[2].input.value);
+
+      exposureControls.forEach(({ input, output }) => {
+        output.value = input.value;
+      });
+
+      const score = Math.max(0, Math.min(100, Math.round((apps * 4.2) + (cloud * 4.4) + ((10 - habits) * 3.8))));
+      
+      const hue = Math.max(0, 140 - (score * 1.4));
+      
+      scoreDial.style.background = `
+        radial-gradient(circle at center, rgba(4,16,25,0.96) 0 44%, transparent 45%),
+        conic-gradient(hsl(${hue} 90% 58%) 0deg, var(--amber) ${Math.max(80, score * 2)}deg, rgba(102,255,224,0.16) 0deg 360deg)
+      `;
+      scoreValue.textContent = score;
+      
+      // Glow dinámico
+      if(score >= 75) {
+         scoreDial.style.boxShadow = "0 0 50px rgba(255, 93, 115, 0.4)";
+         scoreDial.children[0].style.textShadow = "0 0 20px rgba(255, 93, 115, 0.5)";
+      } else {
+         scoreDial.style.boxShadow = "var(--shadow)";
+         scoreDial.children[0].style.textShadow = "none";
+      }
+
+      if (score >= 75) {
+        scoreState.textContent = "riesgo alto";
+        scoreState.style.color = "var(--danger)";
+        scoreNote.textContent = "Tu huella resulta muy rentable para predicción masiva.";
+      } else if (score >= 45) {
+        scoreState.textContent = "riesgo medio";
+        scoreState.style.color = "var(--amber)";
+        scoreNote.textContent = "Todavía hay demasiados puntos de correlación trivial.";
+      } else {
+        scoreState.textContent = "riesgo contenido";
+        scoreState.style.color = "var(--green)";
+        scoreNote.textContent = "Existe fricción estructural. Sostén la higiene operativa.";
+      }
+    }
+
+    exposureControls.forEach(({ input }) => {
+      if (!input) return;
+      input.addEventListener("input", updateExposureScore);
+    });
+    updateExposureScore();
+
+    // --- MAGNETIC ELEMENTS ---
+    const magneticNodes = document.querySelectorAll(".magnetic");
+    magneticNodes.forEach((node) => {
+      node.addEventListener("pointermove", (event) => {
+        if (reducedMotion || window.innerWidth < 720) return;
+        const rect = node.getBoundingClientRect();
+        const x = event.clientX - rect.left - rect.width / 2;
+        const y = event.clientY - rect.top - rect.height / 2;
+        node.style.transform = `translate(${x * 0.15}px, ${y * 0.15}px)`;
+      });
+      node.addEventListener("pointerleave", () => {
+        node.style.transform = "";
+      });
+    });
+
+    // --- GRAFO D3 CON ZOOM & PAN ---
+    const authorData = {
+      nodes: [
+        { id: "Snowden", school: "Libertarismo cívico / whistleblower", summary: "Ex contratista de inteligencia que denuncia la vigilancia masiva como abuso estructural del poder estatal.", connection: "Convierte un sistema secreto en debate constitucional abierto.", tension: "Dialoga con Schneier en seguridad práctica y coincide con Assange en exponer opacidad; discrepa del fatalismo puro.", bullets: ["Ve la privacidad como condición de libertad y no como hobby de técnicos.", "Critica la fusión entre inteligencia, contratistas y plataformas.", "Confía en cifrado y responsabilidad cívica como defensa mínima."], group: 1, radius: 36 },
+        { id: "Foucault", school: "Postestructuralismo / biopolítica", summary: "Filósofo que explica cómo la observación disciplinaria fabrica sujetos obedientes.", connection: "El panóptico ayuda a entender por qué la vigilancia cambia conducta incluso sin castigo inmediato.", tension: "Aporta diagnóstico poderoso, pero ofrece menos guía normativa para limitar al Estado.", bullets: ["La visibilidad asimétrica es una tecnología de poder.", "La vigilancia produce autocensura y docilidad."], group: 2, radius: 32 },
+        { id: "Harari", school: "Historia global / tecno-política", summary: "Advierte que datos y algoritmos permiten hackear preferencias, deseos y decisiones humanas.", connection: "Amplía la tesis de Snowden: No solo se vigila el pasado, también se predice y moldea el futuro.", tension: "Su enfoque es macrohistórico y menos jurídico; ilumina riesgos civilizatorios.", bullets: ["Los sistemas pueden conocer patrones antes que el propio sujeto.", "El problema ya no es solo archivo: Es intervención conductual."], group: 3, radius: 32 },
+        { id: "Schneier", school: "Ciberseguridad / políticas públicas", summary: "Especialista en seguridad que insiste en pensar amenazas, incentivos y superficie de ataque.", connection: "Traduce el problema moral en arquitectura de seguridad, criptografía y gobernanza técnica.", tension: "Coincide con Snowden en riesgos sistémicos, articula mejor la ingeniería defensiva.", bullets: ["La seguridad siempre implica tradeoffs y modelos de amenaza.", "Sin buen diseño institucional, la tecnología agrava asimetrías."], group: 4, radius: 32 },
+        { id: "Assange", school: "Radical transparencia / anti-secreto", summary: "Defiende exponer archivos y estructuras opacas para romper monopolios informativos del poder.", connection: "Comparte con Snowden la intuición de que el secreto oficial es herramienta de dominación.", tension: "Es más beligerante y menos gradualista en medios y fines.", bullets: ["Busca golpear la opacidad con publicación masiva.", "Su estrategia prioriza choque frontal sobre reforma incremental."], group: 5, radius: 32 }
+      ],
+      links: [
+        { source: "Snowden", target: "Foucault", label: "Panóptico digital" },
+        { source: "Snowden", target: "Harari", label: "Datos y predicción" },
+        { source: "Snowden", target: "Schneier", label: "Seguridad y cifrado" },
+        { source: "Snowden", target: "Assange", label: "Secreto estatal" },
+        { source: "Foucault", target: "Harari", label: "Disciplina y hackeo" },
+        { source: "Schneier", target: "Harari", label: "IA y amenazas" },
+        { source: "Assange", target: "Foucault", label: "Visibilidad del poder" }
+      ]
+    };
+
+    const infoName = document.getElementById("author-name");
+    const infoSchool = document.getElementById("author-school");
+    const infoSummary = document.getElementById("author-summary");
+    const infoConnection = document.getElementById("author-connection");
+    const infoTension = document.getElementById("author-tension");
+    const infoLinks = document.getElementById("author-links");
+
+    function updateAuthorInfo(author) {
+      infoName.textContent = author.id === "Snowden" ? "Edward Snowden" : author.id;
+      infoSchool.textContent = author.school;
+      infoSummary.textContent = author.summary;
+      infoConnection.textContent = author.connection;
+      infoTension.textContent = author.tension;
+      infoLinks.innerHTML = author.bullets.map((bullet) => `<li>${bullet}</li>`).join("");
+    }
+
+    const graphPanel = document.querySelector(".graph-box");
+    let graphBounds = graphPanel.getBoundingClientRect();
+    let width = Math.max(graphBounds.width - 2, 980);
+    let height = 780;
+    
+    const svg = d3.select("#author-graph")
+      .attr("width", width)
+      .attr("height", height)
+      .attr("viewBox", `0 0 ${width} ${height}`)
+      .attr("preserveAspectRatio", "xMidYMid meet")
+      .style("display", "block")
+      .style("opacity", 1);
+
+    // Contenedor general para permitir Zoom y Pan
+    const container = svg.append("g");
+    
+    const zoom = d3.zoom()
+      .scaleExtent([0.6, 2.5])
+      .on("zoom", (event) => {
+        container.attr("transform", event.transform);
+      });
+      
+    svg.call(zoom);
+
+    const defs = svg.append("defs");
+    const glow = defs.append("filter")
+      .attr("id", "node-glow")
+      .attr("x", "-50%").attr("y", "-50%").attr("width", "200%").attr("height", "200%");
+    glow.append("feGaussianBlur").attr("stdDeviation", "5").attr("result", "blur");
+    glow.append("feMerge").selectAll("feMergeNode").data(["blur", "SourceGraphic"]).join("feMergeNode").attr("in", d => d);
+
+    const colorMap = { 1: "#66ffe0", 2: "#69b8ff", 3: "#ffd166", 4: "#89ff8f", 5: "#ff8fab" };
+
+    const link = container.append("g")
+      .attr("stroke", "rgba(105, 184, 255, 0.45)")
+      .attr("stroke-width", 1.8)
+      .selectAll("line")
+      .data(authorData.links)
+      .join("line");
+
+    const linkLabel = container.append("g")
+      .selectAll("text")
+      .data(authorData.links)
+      .join("text")
+      .attr("fill", "rgba(216, 247, 255, 0.58)")
+      .attr("font-size", 13)
+      .attr("text-anchor", "middle")
+      .text(d => d.label);
+
+    const node = container.append("g")
+      .selectAll("g")
+      .data(authorData.nodes)
+      .join("g")
+      .style("cursor", "none") 
+      .call(
+        d3.drag()
+          .on("start", dragStarted)
+          .on("drag", dragged)
+          .on("end", dragEnded)
+      );
+
+    node.append("circle")
+      .attr("r", d => d.radius + 12)
+      .attr("fill", d => colorMap[d.group])
+      .attr("opacity", 0.12)
+      .attr("filter", "url(#node-glow)");
+
+    node.append("circle")
+      .attr("r", d => d.radius)
+      .attr("fill", d => colorMap[d.group])
+      .attr("stroke", "rgba(216, 247, 255, 0.8)")
+      .attr("stroke-width", 1.3)
+      .transition().duration(500);
+
+    node.append("text")
+      .attr("text-anchor", "middle")
+      .attr("dy", 5)
+      .attr("fill", "#041019")
+      .attr("font-size", 12)
+      .attr("font-weight", 700)
+      .text(d => d.id === "Snowden" ? "Snowden" : d.id);
+
+    // Hover effect
+    node.on("mouseenter", () => cursorOutline.classList.add("hover"));
+    node.on("mouseleave", () => cursorOutline.classList.remove("hover"));
+
+    node.on("click", function (_, d) {
+      updateAuthorInfo(d);
+      node.selectAll("circle:nth-child(2)").attr("stroke", "rgba(216, 247, 255, 0.8)").attr("stroke-width", 1.3);
+      d3.select(this).select("circle:nth-child(2)").attr("stroke", "#ffffff").attr("stroke-width", 2.5);
+    });
+
+    const simulation = d3.forceSimulation(authorData.nodes)
+      .force("link", d3.forceLink(authorData.links).id(d => d.id).distance(210))
+      .force("charge", d3.forceManyBody().strength(-720))
+      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("collision", d3.forceCollide().radius(d => d.radius + 44));
+
+    simulation.on("tick", () => {
+      link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+      linkLabel.attr("x", d => (d.source.x + d.target.x) / 2).attr("y", d => (d.source.y + d.target.y) / 2 - 14);
+      node.attr("transform", d => `translate(${d.x}, ${d.y})`);
+    });
+
+    function dragStarted(event) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      event.subject.fx = event.subject.x; event.subject.fy = event.subject.y;
+      cursorOutline.classList.add("click");
+    }
+    function dragged(event) {
+      event.subject.fx = event.x; event.subject.fy = event.y;
+    }
+    function dragEnded(event) {
+      if (!event.active) simulation.alphaTarget(0);
+      event.subject.fx = null; event.subject.fy = null;
+      cursorOutline.classList.remove("click");
+    }
+
+    updateAuthorInfo(authorData.nodes[0]);
+    node.filter(d => d.id === "Snowden").select("circle:nth-child(2)").attr("stroke", "#ffffff").attr("stroke-width", 2.5);
+
+    window.addEventListener("resize", () => {
+      graphBounds = graphPanel.getBoundingClientRect();
+      width = Math.max(graphBounds.width - 2, 980);
+      svg.attr("width", width).attr("viewBox", `0 0 ${width} ${height}`);
+      simulation.force("center", d3.forceCenter(width / 2, height / 2));
+      simulation.alpha(0.35).restart();
+    });
+
+    // --- ANIMACIONES GSAP SCROLL ---
+    if (!reducedMotion && window.gsap && window.ScrollTrigger) {
+      gsap.registerPlugin(ScrollTrigger);
+
+      gsap.timeline({ defaults: { ease: "power3.out" } })
+        .from(".hero-copy", { opacity: 0, y: 48, duration: 0.9 })
+        .from(".hero-monitor", { opacity: 0, x: 42, duration: 0.8 }, "-=0.45")
+        .from(".hero-title", { opacity: 0, y: 24, duration: 0.7 }, "-=0.35")
+        .from(".hero-subtitle", { opacity: 0, y: 20, duration: 0.6 }, "-=0.45")
+        .from(".hero-visual", { opacity: 0, y: 28, scale: 0.98, duration: 0.7 }, "-=0.4")
+        .from(".hero-actions .button", { opacity: 0, y: 18, stagger: 0.12, duration: 0.45 }, "-=0.35");
+
+      gsap.utils.toArray(".reveal").forEach((element) => {
+        gsap.to(element, {
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          ease: "power2.out",
+          scrollTrigger: {
+            trigger: element,
+            start: "top 82%",
+            toggleActions: "play none none none"
+          }
+        });
+      });
+
+      gsap.to(".hero-monitor", {
+        yPercent: -6,
+        ease: "none",
+        scrollTrigger: {
+          trigger: ".hero",
+          start: "top top",
+          end: "bottom top",
+          scrub: true
+        }
+      });
+
+      gsap.to(".orbit-ring", { rotate: 360, duration: 26, ease: "none", repeat: -1, transformOrigin: "center center" });
+
+      gsap.from(".graph-box", {
+        opacity: 0, scale: 0.98, duration: 0.9,
+        scrollTrigger: { trigger: ".graph-box", start: "top 76%", toggleActions: "play none none none" }
+      });
+      
+      gsap.to(".evidence-graphic", {
+        backgroundPosition: "0 16px",
+        duration: 5,
+        ease: "sine.inOut",
+        repeat: -1,
+        yoyo: true
+      });
+    } else {
+      document.querySelectorAll(".reveal").forEach((el) => { el.style.opacity = "1"; el.style.transform = "none"; });
+    }
+  </script>
+</body>
+</html>
